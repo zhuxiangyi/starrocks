@@ -183,7 +183,8 @@ public class HiveMetastoreApiConverter {
                 .setStorageFormat(
                         HiveStorageFormat.get(
                                 fromHdfsInputFormatClass(table.getSd().getInputFormat()).name(),
-                                table.getSd().getSerdeInfo().getSerializationLib()))
+                                table.getSd().getSerdeInfo() != null ?
+                                        table.getSd().getSerdeInfo().getSerializationLib() : null))
                 .setCreateTime(table.getCreateTime())
                 .setHiveTableType(HiveTable.HiveTableType.fromString(table.getTableType()));
 
@@ -362,7 +363,7 @@ public class HiveMetastoreApiConverter {
                 .setParams(params)
                 .setFullPath(sd.getLocation())
                 .setInputFormat(toRemoteFileInputFormat(sd.getInputFormat(),
-                        sd.getSerdeInfo().getSerializationLib()))
+                        sd.getSerdeInfo() != null ? sd.getSerdeInfo().getSerializationLib() : null))
                 .setTextFileFormatDesc(toTextFileFormatDesc(textFileParameters))
                 .setSplittable(RemoteFileInputFormat.isSplittable(sd.getInputFormat()));
 

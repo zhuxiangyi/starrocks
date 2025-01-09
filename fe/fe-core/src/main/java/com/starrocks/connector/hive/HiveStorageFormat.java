@@ -97,7 +97,7 @@ public enum HiveStorageFormat {
         for (HiveStorageFormat storageFormat : HiveStorageFormat.values()) {
             if (storageFormat.name().equalsIgnoreCase(format)) {
                 if (storageFormat == HiveStorageFormat.TEXTFILE &&
-                        serializationLib.equals(HiveClassNames.TEXT_JSON_SERDE_CLASS)) {
+                        HiveClassNames.TEXT_JSON_SERDE_CLASS.equals(serializationLib)) {
                     return HiveStorageFormat.JSONTEXT;
                 }
                 return storageFormat;
