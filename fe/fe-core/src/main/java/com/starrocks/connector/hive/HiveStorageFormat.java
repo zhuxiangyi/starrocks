@@ -37,6 +37,8 @@ import static com.starrocks.connector.hive.HiveClassNames.SEQUENCE_INPUT_FORMAT_
 import static com.starrocks.connector.hive.HiveClassNames.SEQUENCE_OUTPUT_FORMAT_CLASS;
 import static com.starrocks.connector.hive.HiveClassNames.TEXT_INPUT_FORMAT_CLASS;
 import static com.starrocks.connector.hive.HiveClassNames.TEXT_JSON_SERDE_CLASS;
+import static com.starrocks.connector.hive.HiveClassNames.TEXT_JSON3_SERDE_CLASS;
+import static com.starrocks.connector.hive.HiveClassNames.TEXT_CSV_SERDE_CLASS;
 import static com.starrocks.connector.hive.HiveMetastoreOperations.FILE_FORMAT;
 import static java.util.Objects.requireNonNull;
 
@@ -78,6 +80,16 @@ public enum HiveStorageFormat {
             TEXT_INPUT_FORMAT_CLASS,
             HIVE_IGNORE_KEY_OUTPUT_FORMAT_CLASS
     ),
+    JSON3TEXT(
+            TEXT_JSON3_SERDE_CLASS,
+            TEXT_INPUT_FORMAT_CLASS,
+            HIVE_IGNORE_KEY_OUTPUT_FORMAT_CLASS
+    ),
+    CSVTEXT(
+            TEXT_JSON3_SERDE_CLASS,
+            TEXT_INPUT_FORMAT_CLASS,
+            HIVE_IGNORE_KEY_OUTPUT_FORMAT_CLASS
+    ),
     UNSUPPORTED("UNSUPPORTED", "UNSUPPORTED", "UNSUPPORTED");
 
     private final String serde;
@@ -96,9 +108,14 @@ public enum HiveStorageFormat {
     public static HiveStorageFormat get(String format, String serializationLib) {
         for (HiveStorageFormat storageFormat : HiveStorageFormat.values()) {
             if (storageFormat.name().equalsIgnoreCase(format)) {
-                if (storageFormat == HiveStorageFormat.TEXTFILE &&
-                        HiveClassNames.TEXT_JSON_SERDE_CLASS.equals(serializationLib)) {
-                    return HiveStorageFormat.JSONTEXT;
+                if (storageFormat == HiveStorageFormat.TEXTFILE) {
+                    if (HiveClassNames.TEXT_JSON_SERDE_CLASS.equals(serializationLib)) {
+                        return HiveStorageFormat.JSONTEXT;
+                    } else if (HiveClassNames.TEXT_JSON3_SERDE_CLASS.equals(serializationLib)) {
+                        return HiveStorageFormat.JSON3TEXT;
+                    } else if (HiveClassNames.TEXT_CSV_SERDE_CLASS.equals(serializationLib)) {
+                        return HiveStorageFormat.CSVTEXT;
+                    }
                 }
                 return storageFormat;
             }

@@ -587,8 +587,16 @@ public class HiveMetastoreApiConverter {
     public static RemoteFileInputFormat toRemoteFileInputFormat(String inputFormat, String serializationLib) {
         RemoteFileInputFormat storageFormat = toRemoteFileInputFormat(inputFormat);
         if (storageFormat == RemoteFileInputFormat.TEXTFILE) {
-            if (serializationLib.equals(HiveClassNames.TEXT_JSON_SERDE_CLASS)) {
-                return RemoteFileInputFormat.JSONTEXT;
+            switch (serializationLib) {
+                case HiveClassNames.TEXT_JSON_SERDE_CLASS -> {
+                    return RemoteFileInputFormat.JSONTEXT;
+                }
+                case HiveClassNames.TEXT_JSON3_SERDE_CLASS -> {
+                    return RemoteFileInputFormat.JSON3TEXT;
+                }
+                case HiveClassNames.TEXT_CSV_SERDE_CLASS -> {
+                    return RemoteFileInputFormat.CSVTEXT;
+                }
             }
         }
         return storageFormat;

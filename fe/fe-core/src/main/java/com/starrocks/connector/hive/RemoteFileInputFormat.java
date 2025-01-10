@@ -34,6 +34,8 @@ public enum RemoteFileInputFormat {
     RCTEXT,
     SEQUENCE,
     JSONTEXT,
+    JSON3TEXT,
+    CSVTEXT,
     UNKNOWN;
     private static final ImmutableMap<String, RemoteFileInputFormat> CLASS_NAME_TO_INPUT_FORMAT =
             new ImmutableMap.Builder<String, RemoteFileInputFormat>()
@@ -100,6 +102,10 @@ public enum RemoteFileInputFormat {
                 return THdfsFileFormat.SEQUENCE_FILE;
             case JSONTEXT:
                 return THdfsFileFormat.JSON_TEXT;
+            case JSON3TEXT:
+                return THdfsFileFormat.JSON3_TEXT;
+            case CSVTEXT:
+                return THdfsFileFormat.CSV_TEXT;
             default:
                 return THdfsFileFormat.UNKNOWN;
         }
