@@ -86,7 +86,7 @@ public enum HiveStorageFormat {
             HIVE_IGNORE_KEY_OUTPUT_FORMAT_CLASS
     ),
     CSVTEXT(
-            TEXT_JSON3_SERDE_CLASS,
+            TEXT_CSV_SERDE_CLASS,
             TEXT_INPUT_FORMAT_CLASS,
             HIVE_IGNORE_KEY_OUTPUT_FORMAT_CLASS
     ),
