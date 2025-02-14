@@ -181,7 +181,9 @@ public class HiveMetastoreApiConverter {
                         HiveStorageFormat.get(fromHdfsInputFormatClass(table.getSd().getInputFormat()).name())))
                 .setSerdeProperties(toSerDeProperties(table))
                 .setStorageFormat(
-                        HiveStorageFormat.get(fromHdfsInputFormatClass(table.getSd().getInputFormat()).name()))
+                        HiveStorageFormat.get(
+                                fromHdfsInputFormatClass(table.getSd().getInputFormat()).name(),
+                                table.getSd().getSerdeInfo().getSerializationLib()))
                 .setCreateTime(table.getCreateTime())
                 .setHiveTableType(HiveTable.HiveTableType.fromString(table.getTableType()));
 
@@ -359,7 +361,8 @@ public class HiveMetastoreApiConverter {
         Partition.Builder partitionBuilder = Partition.builder()
                 .setParams(params)
                 .setFullPath(sd.getLocation())
-                .setInputFormat(toRemoteFileInputFormat(sd.getInputFormat()))
+                .setInputFormat(toRemoteFileInputFormat(sd.getInputFormat(),
+                        sd.getSerdeInfo().getSerializationLib()))
                 .setTextFileFormatDesc(toTextFileFormatDesc(textFileParameters))
                 .setSplittable(RemoteFileInputFormat.isSplittable(sd.getInputFormat()));
 
@@ -578,6 +581,29 @@ public class HiveMetastoreApiConverter {
             return RemoteFileInputFormat.PARQUET;
         }
         return RemoteFileInputFormat.fromHdfsInputFormatClass(inputFormat);
+    }
+
+    public static RemoteFileInputFormat toRemoteFileInputFormat(String inputFormat, String serializationLib) {
+        if (isHudiTable(inputFormat)) {
+            // Currently, we only support parquet on hudi format.
+            return RemoteFileInputFormat.PARQUET;
+        }
+        RemoteFileInputFormat storageFormat = toRemoteFileInputFormat(inputFormat);
+
+        if (storageFormat == RemoteFileInputFormat.TEXTFILE) {
+            switch (serializationLib) {
+                case HiveClassNames.TEXT_JSON_SERDE_CLASS -> {
+                    return RemoteFileInputFormat.JSONTEXT;
+                }
+                case HiveClassNames.TEXT_JSON3_SERDE_CLASS -> {
+                    return RemoteFileInputFormat.JSON3TEXT;
+                }
+                case HiveClassNames.TEXT_CSV_SERDE_CLASS -> {
+                    return RemoteFileInputFormat.CSVTEXT;
+                }
+            }
+        }
+        return storageFormat;
     }
 
     public static TextFileFormatDesc toTextFileFormatDesc(Map<String, String> parameters) {
