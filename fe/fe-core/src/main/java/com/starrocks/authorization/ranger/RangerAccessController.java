@@ -78,7 +78,11 @@ public abstract class RangerAccessController extends ExternalAccessController im
             if (StringUtils.equalsIgnoreCase(maskType, RangerPolicy.MASK_TYPE_NULL)) {
                 transformer = "NULL";
             } else if (StringUtils.equalsIgnoreCase(maskType, RangerPolicy.MASK_TYPE_CUSTOM)) {
-                String maskedValue = result.getMaskedValue();
+                String maskedValue = result.getMaskedValue().trim();
+                if (maskedValue.startsWith("mask_hash")) {
+                    String innerContent = maskedValue.replaceAll("^mask_hash\\(", "").replaceAll("\\)$", "");
+                    maskedValue = "sha2(" + innerContent + ", 256)";
+                }
                 transformer = Objects.requireNonNullElse(maskedValue, "NULL");
             }
 
