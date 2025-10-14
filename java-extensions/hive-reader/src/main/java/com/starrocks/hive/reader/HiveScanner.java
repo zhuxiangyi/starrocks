@@ -65,6 +65,8 @@ public class HiveScanner extends ConnectorScanner {
 
     private final String dataFilePath;
 
+    private Integer skipLineCt = 0;
+
     private final long blockOffset;
 
     private final long blockLength;
@@ -103,6 +105,14 @@ public class HiveScanner extends ConnectorScanner {
         this.structFields = new StructField[requiredFields.length];
         this.classLoader = this.getClass().getClassLoader();
         this.fsOptionsProps = params.get("fs_options_props");
+        for (Map.Entry<String, String> p :params.entrySet()){
+            LOG.warn("param  key is : " + p.getKey(), "param is v : " + p.getValue());
+        }
+        String skipLineString = params.get("skip.header.line.count");
+        LOG.info("skipLineString is : " + skipLineString);
+        if (skipLineString != null) {
+            this.skipLineCt = Integer.parseInt(skipLineString);
+        }
         for (Map.Entry<String, String> kv : params.entrySet()) {
             if (kv.getKey().startsWith(SERDE_PROPERTY_PREFIX)) {
                 this.serdeProperties.put(kv.getKey().substring(SERDE_PROPERTY_PREFIX.length()), kv.getValue());
@@ -247,6 +257,9 @@ public class HiveScanner extends ConnectorScanner {
             for (; numRows < getTableSize(); numRows++) {
                 if (!reader.next(key, value)) {
                     break;
+                }
+                if (numRows < this.skipLineCt) {
+                    continue;
                 }
                 Object rowData = deserializer.deserialize(value);
                 for (int i = 0; i < requiredFields.length; i++) {

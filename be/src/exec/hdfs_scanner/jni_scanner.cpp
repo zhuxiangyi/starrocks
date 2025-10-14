@@ -543,7 +543,11 @@ std::unique_ptr<JniScanner> create_hive_jni_scanner(const JniScanner::CreateOpti
     jni_scanner_params["input_format"] = input_format;
     jni_scanner_params["time_zone"] = time_zone;
     jni_scanner_params["fs_options_props"] = build_fs_options_properties(*(options.fs_options));
-
+    if (scan_range.__isset.text_file_desc &&
+        scan_range.text_file_desc.__isset.skip_header_line_count) {
+        jni_scanner_params["skip.header.line.count"] =
+            std::to_string(scan_range.text_file_desc.skip_header_line_count);
+    }
     for (const auto& pair : serde_properties) {
         jni_scanner_params[serde_property_prefix + pair.first] = pair.second;
     }
