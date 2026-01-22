@@ -39,9 +39,9 @@ import static com.starrocks.connector.hive.HiveClassNames.RCFILE_OUTPUT_FORMAT_C
 import static com.starrocks.connector.hive.HiveClassNames.SEQUENCE_INPUT_FORMAT_CLASS;
 import static com.starrocks.connector.hive.HiveClassNames.SEQUENCE_OUTPUT_FORMAT_CLASS;
 import static com.starrocks.connector.hive.HiveClassNames.TEXT_INPUT_FORMAT_CLASS;
-import static com.starrocks.connector.hive.HiveClassNames.TEXT_JSON_SERDE_CLASS;
-import static com.starrocks.connector.hive.HiveClassNames.TEXT_JSON3_SERDE_CLASS;
 import static com.starrocks.connector.hive.HiveClassNames.TEXT_CSV_SERDE_CLASS;
+import static com.starrocks.connector.hive.HiveClassNames.TEXT_JSON3_SERDE_CLASS;
+import static com.starrocks.connector.hive.HiveClassNames.TEXT_JSON_SERDE_CLASS;
 import static com.starrocks.connector.hive.HiveMetastoreOperations.FILE_FORMAT;
 import static java.util.Objects.requireNonNull;
 
@@ -129,23 +129,6 @@ public enum HiveStorageFormat {
         return FORMAT_SERDE_MAP.getOrDefault(inputFormat + ":" + serde, UNSUPPORTED);
     }
 
-    public static HiveStorageFormat get(String format, String serializationLib) {
-        for (HiveStorageFormat storageFormat : HiveStorageFormat.values()) {
-            if (storageFormat.name().equalsIgnoreCase(format)) {
-                if (storageFormat == HiveStorageFormat.TEXTFILE) {
-                    if (TEXT_JSON_SERDE_CLASS.equals(serializationLib)) {
-                        return HiveStorageFormat.JSONTEXT;
-                    } else if (TEXT_JSON3_SERDE_CLASS.equals(serializationLib)) {
-                        return HiveStorageFormat.JSON3TEXT;
-                    } else if (TEXT_CSV_SERDE_CLASS.equals(serializationLib)) {
-                        return HiveStorageFormat.CSVTEXT;
-                    }
-                }
-            }
-        }
-        return UNSUPPORTED;
-    }
-
     public static void check(Map<String, String> properties) {
         if (properties.containsKey("format") && !properties.containsKey(FILE_FORMAT)) {
             throw new StarRocksConnectorException(
@@ -181,7 +164,7 @@ public enum HiveStorageFormat {
         return switch (this) {
             case PARQUET -> THdfsFileFormat.PARQUET;
             case ORC -> THdfsFileFormat.ORC;
-            case TEXTFILE, OPENXJSON -> THdfsFileFormat.TEXT;
+            case TEXTFILE, OPENXJSON, JSONTEXT, JSON3TEXT, CSVTEXT -> THdfsFileFormat.TEXT;
             case AVRO -> THdfsFileFormat.AVRO;
             case RCBINARY, RCTEXT -> THdfsFileFormat.RC_FILE;
             case SEQUENCE -> THdfsFileFormat.SEQUENCE_FILE;
@@ -190,7 +173,9 @@ public enum HiveStorageFormat {
     }
 
     public boolean isTextFormat() {
-        return this == HiveStorageFormat.TEXTFILE;
+        return this == HiveStorageFormat.TEXTFILE || this == HiveStorageFormat.JSONTEXT
+                || this == HiveStorageFormat.JSON3TEXT || this == HiveStorageFormat.CSVTEXT
+                || this == HiveStorageFormat.OPENXJSON;
     }
 
 }

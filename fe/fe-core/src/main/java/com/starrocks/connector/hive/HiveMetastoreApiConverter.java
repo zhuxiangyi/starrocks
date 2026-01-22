@@ -369,7 +369,6 @@ public class HiveMetastoreApiConverter {
         // "skip.header.line.count" is set in TBLPROPERTIES
         textFileParameters.putAll(params);
 
-        // Debug: log skip.header.line.count if present
         if (params.containsKey("skip.header.line.count")) {
             LOG.info("Found skip.header.line.count = {} in TBLPROPERTIES params",
                     params.get("skip.header.line.count"));
@@ -652,7 +651,6 @@ public class HiveMetastoreApiConverter {
             skipHeaderLineCount = 0;
         }
 
-        // Debug log to trace the issue
         if (skipHeaderLineCount > 0) {
             LOG.info("Parsed skip.header.line.count = {} from parameters. serdeConstants.HEADER_COUNT = '{}', direct key = '{}'",
                     skipHeaderLineCount, serdeConstants.HEADER_COUNT,
