@@ -51,4 +51,12 @@ public class HiveClassNames {
             "org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat";
 
     public static final String OPENXJSON_SERDE_CLASS = "org.openx.data.jsonserde.JsonSerDe";
+
+    public static final String TEXT_JSON_SERDE_CLASS = "org.apache.hive.hcatalog.data.JsonSerDe";
+
+    public static final String TEXT_JSON3_SERDE_CLASS = "org.openx.data.jsonserde.JsonSerDe";
+
+    public static final String TEXT_CSV_SERDE_CLASS = "org.apache.hadoop.hive.serde2.OpenCSVSerde";
+
+
 }

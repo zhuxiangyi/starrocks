@@ -72,6 +72,8 @@ public class HiveScanner extends ConnectorScanner {
     private final String serde;
     private final String inputFormat;
 
+    private final int skipHeaderLineCount;
+
     private RecordReader<Writable, Writable> reader;
     private StructObjectInspector rowInspector;
     private ObjectInspector[] fieldInspectors;
@@ -101,6 +103,9 @@ public class HiveScanner extends ConnectorScanner {
         this.inputFormat = params.get("input_format");
         this.fieldInspectors = new ObjectInspector[requiredFields.length];
         this.structFields = new StructField[requiredFields.length];
+        this.skipHeaderLineCount =
+                parseSkipHeaderLineCount(params.getOrDefault("skip_header_line_count", "0"));
+        LOG.info("skipHeaderLineCount is : " + skipHeaderLineCount);
         this.classLoader = this.getClass().getClassLoader();
         this.fsOptionsProps = params.get("fs_options_props");
         for (Map.Entry<String, String> kv : params.entrySet()) {
@@ -211,6 +216,7 @@ public class HiveScanner extends ConnectorScanner {
         }
         key = (Writable) reader.createKey();
         value = (Writable) reader.createValue();
+        skipHeaderIfNeeded();
     }
 
     @Override
@@ -267,6 +273,27 @@ public class HiveScanner extends ConnectorScanner {
             close();
             LOG.error("Failed to get the next off-heap table chunk of hive.", e);
             throw new IOException("Failed to get the next off-heap table chunk of hive.", e);
+        }
+    }
+
+    private int parseSkipHeaderLineCount(String rawValue) {
+        try {
+            int value = Integer.parseInt(rawValue);
+            return Math.max(value, 0);
+        } catch (NumberFormatException e) {
+            LOG.warn("Invalid skip_header_line_count: {}", rawValue);
+            return 0;
+        }
+    }
+
+    private void skipHeaderIfNeeded() throws IOException {
+        if (blockOffset != 0 || skipHeaderLineCount <= 0) {
+            return;
+        }
+        for (int i = 0; i < skipHeaderLineCount; i++) {
+            if (!reader.next(key, value)) {
+                break;
+            }
         }
     }
 

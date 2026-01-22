@@ -25,6 +25,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.DateObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.TimestampObjectInspector;
 
 import java.math.BigDecimal;
@@ -47,48 +48,54 @@ public class HiveColumnValue implements ColumnValue {
         this.timeZone = timeZone;
     }
 
+    private PrimitiveObjectInspector primitiveInspector() {
+        return (PrimitiveObjectInspector) fieldInspector;
+    }
+
     private Object inspectObject() {
-        return ((PrimitiveObjectInspector) fieldInspector).getPrimitiveJavaObject(fieldData);
+        return primitiveInspector().getPrimitiveJavaObject(fieldData);
     }
 
     @Override
     public boolean getBoolean() {
-        return (boolean) inspectObject();
+        return PrimitiveObjectInspectorUtils.getBoolean(fieldData, primitiveInspector());
     }
 
     @Override
     public short getShort() {
-        Object value = inspectObject();
-        if (value instanceof Integer) {
-            return ((Integer) value).shortValue();
-        } else {
-            return (short) inspectObject();
+        try {
+            return PrimitiveObjectInspectorUtils.getShort(fieldData, primitiveInspector());
+        } catch (NumberFormatException e) {
+            return (short) parseScientificNumberAsLong(e);
         }
     }
 
     @Override
     public int getInt() {
-        Object value = inspectObject();
-        if (value instanceof Integer) {
-            return ((Integer) value).intValue();
-        } else {
-            return (int) inspectObject();
+        try {
+            return PrimitiveObjectInspectorUtils.getInt(fieldData, primitiveInspector());
+        } catch (NumberFormatException e) {
+            return (int) parseScientificNumberAsLong(e);
         }
     }
 
     @Override
     public float getFloat() {
-        return (float) inspectObject();
+        return PrimitiveObjectInspectorUtils.getFloat(fieldData, primitiveInspector());
     }
 
     @Override
     public long getLong() {
-        return (long) inspectObject();
+        try {
+            return PrimitiveObjectInspectorUtils.getLong(fieldData, primitiveInspector());
+        } catch (NumberFormatException e) {
+            return parseScientificNumberAsLong(e);
+        }
     }
 
     @Override
     public double getDouble() {
-        return (double) inspectObject();
+        return PrimitiveObjectInspectorUtils.getDouble(fieldData, primitiveInspector());
     }
 
     @Override
@@ -121,7 +128,8 @@ public class HiveColumnValue implements ColumnValue {
         MapObjectInspector inspector = (MapObjectInspector) fieldInspector;
         ObjectInspector keyObjectInspector = inspector.getMapKeyObjectInspector();
         ObjectInspector valueObjectInspector = inspector.getMapValueObjectInspector();
-        for (Map.Entry kv : inspector.getMap(fieldData).entrySet()) {
+        Map<?, ?> map = inspector.getMap(fieldData);
+        for (Map.Entry<?, ?> kv : map.entrySet()) {
             HiveColumnValue cv0 = null;
             HiveColumnValue cv1 = null;
             if (kv.getKey() != null) {
@@ -155,11 +163,23 @@ public class HiveColumnValue implements ColumnValue {
 
     @Override
     public byte getByte() {
+        try {
+            return PrimitiveObjectInspectorUtils.getByte(fieldData, primitiveInspector());
+        } catch (NumberFormatException e) {
+            return (byte) parseScientificNumberAsLong(e);
+        }
+    }
+
+    private long parseScientificNumberAsLong(NumberFormatException original) {
         Object value = inspectObject();
-        if (value instanceof Integer) {
-            return ((Integer) value).byteValue();
-        } else {
-            return (Byte) inspectObject();
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        try {
+            BigDecimal decimal = new BigDecimal(value.toString());
+            return decimal.longValue();
+        } catch (NumberFormatException | NullPointerException | ArithmeticException e) {
+            throw original;
         }
     }
 

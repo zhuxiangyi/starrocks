@@ -20,6 +20,9 @@ import com.starrocks.catalog.Column;
 import com.starrocks.catalog.HiveTable;
 import com.starrocks.catalog.HudiTable;
 import com.starrocks.connector.exception.StarRocksConnectorException;
+import com.starrocks.connector.Partition;
+import com.starrocks.connector.RemoteFileInputFormat;
+import com.starrocks.connector.TextFileFormatDesc;
 import com.starrocks.connector.hive.HiveClassNames;
 import com.starrocks.connector.hive.HiveMetastoreApiConverter;
 import com.starrocks.connector.hive.HiveStorageFormat;
@@ -240,5 +243,175 @@ public class HiveMetastoreApiConverterTest {
         Map<String, String> properties = HiveMetastoreApiConverter.toApiTableProperties(hiveTable);
         Assertions.assertTrue(properties.containsKey("EXTERNAL"));
         Assertions.assertEquals("TRUE", properties.get("EXTERNAL"));
+    }
+
+    @Test
+    public void testToRemoteFileInputFormatForJsonTable() {
+        String inputFormat = HiveClassNames.TEXT_INPUT_FORMAT_CLASS;
+        String jsonSerde = HiveClassNames.TEXT_JSON_SERDE_CLASS;
+        RemoteFileInputFormat format = HiveMetastoreApiConverter.toRemoteFileInputFormat(inputFormat, jsonSerde);
+        Assertions.assertEquals(RemoteFileInputFormat.JSONTEXT, format);
+
+        String json3Serde = HiveClassNames.TEXT_JSON3_SERDE_CLASS;
+        format = HiveMetastoreApiConverter.toRemoteFileInputFormat(inputFormat, json3Serde);
+        Assertions.assertEquals(RemoteFileInputFormat.JSON3TEXT, format);
+    }
+
+    @Test
+    public void testToRemoteFileInputFormatForCsvTable() {
+        String inputFormat = HiveClassNames.TEXT_INPUT_FORMAT_CLASS;
+        String csvSerde = HiveClassNames.TEXT_CSV_SERDE_CLASS;
+        RemoteFileInputFormat format = HiveMetastoreApiConverter.toRemoteFileInputFormat(inputFormat, csvSerde);
+        Assertions.assertEquals(RemoteFileInputFormat.CSVTEXT, format);
+    }
+
+    @Test
+    public void testToRemoteFileInputFormatForTextFile() {
+        String inputFormat = HiveClassNames.TEXT_INPUT_FORMAT_CLASS;
+        String textSerde = HiveClassNames.LAZY_SIMPLE_SERDE_CLASS;
+        RemoteFileInputFormat format = HiveMetastoreApiConverter.toRemoteFileInputFormat(inputFormat, textSerde);
+        Assertions.assertEquals(RemoteFileInputFormat.TEXTFILE, format);
+    }
+
+    @Test
+    public void testToPartitionWithJsonFormat() {
+        StorageDescriptor sd = new StorageDescriptor();
+        sd.setLocation("hdfs://127.0.0.1/db/table/json_table");
+        sd.setInputFormat(HiveClassNames.TEXT_INPUT_FORMAT_CLASS);
+        org.apache.hadoop.hive.metastore.api.SerdeInfo serdeInfo = new org.apache.hadoop.hive.metastore.api.SerdeInfo();
+        serdeInfo.setSerializationLib(HiveClassNames.TEXT_JSON_SERDE_CLASS);
+        sd.setSerdeInfo(serdeInfo);
+
+        Map<String, String> params = new HashMap<>();
+        Partition partition = HiveMetastoreApiConverter.toPartition(sd, params);
+        Assertions.assertEquals(RemoteFileInputFormat.JSONTEXT, partition.getInputFormat());
+    }
+
+    @Test
+    public void testToPartitionWithCsvFormat() {
+        StorageDescriptor sd = new StorageDescriptor();
+        sd.setLocation("hdfs://127.0.0.1/db/table/csv_table");
+        sd.setInputFormat(HiveClassNames.TEXT_INPUT_FORMAT_CLASS);
+        org.apache.hadoop.hive.metastore.api.SerdeInfo serdeInfo = new org.apache.hadoop.hive.metastore.api.SerdeInfo();
+        serdeInfo.setSerializationLib(HiveClassNames.TEXT_CSV_SERDE_CLASS);
+        sd.setSerdeInfo(serdeInfo);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("skip.header.line.count", "1");
+        Partition partition = HiveMetastoreApiConverter.toPartition(sd, params);
+        Assertions.assertEquals(RemoteFileInputFormat.CSVTEXT, partition.getInputFormat());
+        Assertions.assertEquals(1, partition.getTextFileFormatDesc().getSkipHeaderLineCount());
+    }
+
+    @Test
+    public void testToTextFileFormatDescWithSkipHeaderLineCount() {
+        Map<String, String> parameters = new HashMap<>();
+        parameters.put("skip.header.line.count", "2");
+        TextFileFormatDesc desc = HiveMetastoreApiConverter.toTextFileFormatDesc(parameters);
+        Assertions.assertEquals(2, desc.getSkipHeaderLineCount());
+
+        // Test with serdeConstants.HEADER_COUNT
+        parameters.clear();
+        parameters.put("skip.header.line.count", "3");
+        desc = HiveMetastoreApiConverter.toTextFileFormatDesc(parameters);
+        Assertions.assertEquals(3, desc.getSkipHeaderLineCount());
+
+        // Test with zero
+        parameters.clear();
+        parameters.put("skip.header.line.count", "0");
+        desc = HiveMetastoreApiConverter.toTextFileFormatDesc(parameters);
+        Assertions.assertEquals(0, desc.getSkipHeaderLineCount());
+
+        // Test with negative value (should be clamped to 0)
+        parameters.clear();
+        parameters.put("skip.header.line.count", "-1");
+        desc = HiveMetastoreApiConverter.toTextFileFormatDesc(parameters);
+        Assertions.assertEquals(0, desc.getSkipHeaderLineCount());
+
+        // Test without skip.header.line.count
+        parameters.clear();
+        desc = HiveMetastoreApiConverter.toTextFileFormatDesc(parameters);
+        Assertions.assertEquals(0, desc.getSkipHeaderLineCount());
+    }
+
+    @Test
+    public void testToRemoteFileInputFormatWithHudiTable() {
+        String hudiInputFormat = "org.apache.hudi.hadoop.HoodieParquetInputFormat";
+        String serializationLib = HiveClassNames.TEXT_JSON_SERDE_CLASS;
+        RemoteFileInputFormat format = HiveMetastoreApiConverter.toRemoteFileInputFormat(hudiInputFormat, serializationLib);
+        // Hudi tables should always return PARQUET regardless of serializationLib
+        Assertions.assertEquals(RemoteFileInputFormat.PARQUET, format);
+    }
+
+    @Test
+    public void testToRemoteFileInputFormatWithNonTextInputFormat() {
+        String inputFormat = HiveClassNames.ORC_INPUT_FORMAT_CLASS;
+        String serializationLib = HiveClassNames.TEXT_JSON_SERDE_CLASS;
+        RemoteFileInputFormat format = HiveMetastoreApiConverter.toRemoteFileInputFormat(inputFormat, serializationLib);
+        // Non-text input format should ignore serializationLib
+        Assertions.assertEquals(RemoteFileInputFormat.ORC, format);
+    }
+
+    @Test
+    public void testToPartitionWithJson3Format() {
+        StorageDescriptor sd = new StorageDescriptor();
+        sd.setLocation("hdfs://127.0.0.1/db/table/json3_table");
+        sd.setInputFormat(HiveClassNames.TEXT_INPUT_FORMAT_CLASS);
+        org.apache.hadoop.hive.metastore.api.SerdeInfo serdeInfo = new org.apache.hadoop.hive.metastore.api.SerdeInfo();
+        serdeInfo.setSerializationLib(HiveClassNames.TEXT_JSON3_SERDE_CLASS);
+        sd.setSerdeInfo(serdeInfo);
+
+        Map<String, String> params = new HashMap<>();
+        Partition partition = HiveMetastoreApiConverter.toPartition(sd, params);
+        Assertions.assertEquals(RemoteFileInputFormat.JSON3TEXT, partition.getInputFormat());
+    }
+
+    @Test
+    public void testToPartitionWithCsvFormatAndSkipHeader() {
+        StorageDescriptor sd = new StorageDescriptor();
+        sd.setLocation("hdfs://127.0.0.1/db/table/csv_table");
+        sd.setInputFormat(HiveClassNames.TEXT_INPUT_FORMAT_CLASS);
+        org.apache.hadoop.hive.metastore.api.SerdeInfo serdeInfo = new org.apache.hadoop.hive.metastore.api.SerdeInfo();
+        serdeInfo.setSerializationLib(HiveClassNames.TEXT_CSV_SERDE_CLASS);
+        Map<String, String> serdeParams = new HashMap<>();
+        serdeParams.put("field.delim", ",");
+        serdeInfo.setParameters(serdeParams);
+        sd.setSerdeInfo(serdeInfo);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("skip.header.line.count", "2");
+        Partition partition = HiveMetastoreApiConverter.toPartition(sd, params);
+        Assertions.assertEquals(RemoteFileInputFormat.CSVTEXT, partition.getInputFormat());
+        Assertions.assertEquals(2, partition.getTextFileFormatDesc().getSkipHeaderLineCount());
+    }
+
+    @Test
+    public void testToPartitionWithRegularTextFile() {
+        StorageDescriptor sd = new StorageDescriptor();
+        sd.setLocation("hdfs://127.0.0.1/db/table/text_table");
+        sd.setInputFormat(HiveClassNames.TEXT_INPUT_FORMAT_CLASS);
+        org.apache.hadoop.hive.metastore.api.SerdeInfo serdeInfo = new org.apache.hadoop.hive.metastore.api.SerdeInfo();
+        serdeInfo.setSerializationLib(HiveClassNames.LAZY_SIMPLE_SERDE_CLASS);
+        sd.setSerdeInfo(serdeInfo);
+
+        Map<String, String> params = new HashMap<>();
+        Partition partition = HiveMetastoreApiConverter.toPartition(sd, params);
+        Assertions.assertEquals(RemoteFileInputFormat.TEXTFILE, partition.getInputFormat());
+    }
+
+    @Test
+    public void testToRemoteFileInputFormatEdgeCases() {
+        // Test with null serializationLib
+        String inputFormat = HiveClassNames.TEXT_INPUT_FORMAT_CLASS;
+        RemoteFileInputFormat format = HiveMetastoreApiConverter.toRemoteFileInputFormat(inputFormat, null);
+        Assertions.assertEquals(RemoteFileInputFormat.TEXTFILE, format);
+
+        // Test with empty serializationLib
+        format = HiveMetastoreApiConverter.toRemoteFileInputFormat(inputFormat, "");
+        Assertions.assertEquals(RemoteFileInputFormat.TEXTFILE, format);
+
+        // Test with unknown serializationLib
+        format = HiveMetastoreApiConverter.toRemoteFileInputFormat(inputFormat, "unknown.serde.class");
+        Assertions.assertEquals(RemoteFileInputFormat.TEXTFILE, format);
     }
 }
