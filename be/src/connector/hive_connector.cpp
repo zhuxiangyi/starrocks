@@ -885,6 +885,9 @@ Status HiveDataSource::_init_scanner(RuntimeState* state) {
             scanner = new HdfsTextScanner();
         }
     } else if ((format == THdfsFileFormat::AVRO || format == THdfsFileFormat::RC_FILE ||
+                        format == THdfsFileFormat::JSON_TEXT ||
+                        format == THdfsFileFormat::JSON3_TEXT ||
+                        format == THdfsFileFormat::CSV_TEXT ||
                 format == THdfsFileFormat::RC_TEXT || format == THdfsFileFormat::SEQUENCE_FILE) &&
                (dynamic_cast<const HdfsTableDescriptor*>(_hive_table) != nullptr ||
                 dynamic_cast<const FileTableDescriptor*>(_hive_table) != nullptr)) {

@@ -32,4 +32,12 @@ public class RemoteFileInputFormatTest {
         RemoteFileInputFormat format = RemoteFileInputFormat.UNKNOWN;
         Assertions.assertEquals(THdfsFileFormat.UNKNOWN, format.toThrift());
     }
+
+    @Test
+    public void testTextFormats() {
+        Assertions.assertTrue(RemoteFileInputFormat.TEXTFILE.isTextFormat());
+        Assertions.assertTrue(RemoteFileInputFormat.CSVTEXT.isTextFormat());
+        Assertions.assertTrue(RemoteFileInputFormat.JSONTEXT.isTextFormat());
+        Assertions.assertTrue(RemoteFileInputFormat.JSON3TEXT.isTextFormat());
+    }
 }

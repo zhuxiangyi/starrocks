@@ -32,6 +32,9 @@ public enum RemoteFileInputFormat {
     AVRO,
     RCFILE,
     SEQUENCE,
+    JSONTEXT,
+    JSON3TEXT,
+    CSVTEXT,
     UNKNOWN;
     private static final ImmutableMap<String, RemoteFileInputFormat> CLASS_NAME_TO_INPUT_FORMAT =
             new ImmutableMap.Builder<String, RemoteFileInputFormat>()
@@ -72,7 +75,14 @@ public enum RemoteFileInputFormat {
     }
 
     public boolean isTextFormat() {
-        return this == RemoteFileInputFormat.TEXTFILE;
+        switch (this) {
+            case TEXTFILE:
+            case JSONTEXT:
+            case JSON3TEXT:
+            case CSVTEXT:
+                return true;
+            default:
+                return false;
     }
 
     public THdfsFileFormat toThrift() {
@@ -83,6 +93,9 @@ public enum RemoteFileInputFormat {
             case AVRO -> THdfsFileFormat.AVRO;
             case RCFILE -> THdfsFileFormat.RC_FILE;
             case SEQUENCE -> THdfsFileFormat.SEQUENCE_FILE;
+            case JSONTEXT -> THdfsFileFormat.JSON_TEXT;
+            case JSON3TEXT -> THdfsFileFormat.JSON3_TEXT;
+            case CSVTEXT -> THdfsFileFormat.CSV_TEXT;
             default -> THdfsFileFormat.UNKNOWN;
         };
     }

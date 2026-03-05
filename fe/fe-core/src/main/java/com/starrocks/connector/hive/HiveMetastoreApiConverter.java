@@ -368,14 +368,48 @@ public class HiveMetastoreApiConverter {
         textFileParameters.putAll(sd.getSerdeInfo().getParameters());
         // "skip.header.line.count" is set in TBLPROPERTIES
         textFileParameters.putAll(params);
+        
+        // Debug: log skip.header.line.count if present
+        if (params.containsKey("skip.header.line.count")) {
+            LOG.info("Found skip.header.line.count = {} in TBLPROPERTIES params", params.get("skip.header.line.count"));
+        }
+        if (textFileParameters.containsKey("skip.header.line.count")) {
+            LOG.info("Found skip.header.line.count = {} in merged textFileParameters", 
+                    textFileParameters.get("skip.header.line.count"));
+        }
+        
         Partition.Builder partitionBuilder = Partition.builder()
                 .setParams(params)
                 .setFullPath(sd.getLocation())
-                .setInputFormat(toRemoteFileInputFormat(sd.getInputFormat()))
+                .setInputFormat(toRemoteFileInputFormat(sd.getInputFormat(),
+                        sd.getSerdeInfo().getSerializationLib()))
                 .setTextFileFormatDesc(toTextFileFormatDesc(textFileParameters))
                 .setSplittable(RemoteFileInputFormat.isSplittable(sd.getInputFormat()));
 
         return partitionBuilder.build();
+    }
+
+    public static RemoteFileInputFormat toRemoteFileInputFormat(String inputFormat, String serializationLib) {
+        if (isHudiTable(inputFormat)) {
+            // Currently, we only support parquet on hudi format.
+            return RemoteFileInputFormat.PARQUET;
+        }
+        RemoteFileInputFormat storageFormat = toRemoteFileInputFormat(inputFormat);
+
+        if (storageFormat == RemoteFileInputFormat.TEXTFILE) {
+            switch (serializationLib) {
+                case HiveClassNames.TEXT_JSON_SERDE_CLASS -> {
+                    return RemoteFileInputFormat.JSONTEXT;
+                }
+                case HiveClassNames.TEXT_JSON3_SERDE_CLASS -> {
+                    return RemoteFileInputFormat.JSON3TEXT;
+                }
+                case HiveClassNames.TEXT_CSV_SERDE_CLASS -> {
+                    return RemoteFileInputFormat.CSVTEXT;
+                }
+            }
+        }
+        return storageFormat;
     }
 
     public static org.apache.hadoop.hive.metastore.api.Partition toMetastoreApiPartition(
@@ -604,9 +638,24 @@ public class HiveMetastoreApiConverter {
         }
         String lineDelim = parameters.getOrDefault(serdeConstants.LINE_DELIM, "");
         String mapkeyDelim = parameters.getOrDefault(serdeConstants.MAPKEY_DELIM, "");
-        int skipHeaderLineCount = Integer.parseInt(parameters.getOrDefault(serdeConstants.HEADER_COUNT, "0"));
+        
+        // Try multiple possible keys for skip.header.line.count
+        // Hive uses "skip.header.line.count" in TBLPROPERTIES
+        String skipHeaderLineCountStr = parameters.getOrDefault(serdeConstants.HEADER_COUNT, null);
+        if (skipHeaderLineCountStr == null || skipHeaderLineCountStr.isEmpty()) {
+            // Fallback to direct key lookup
+            skipHeaderLineCountStr = parameters.getOrDefault("skip.header.line.count", "0");
+        }
+        int skipHeaderLineCount = Integer.parseInt(skipHeaderLineCountStr);
         if (skipHeaderLineCount < 0) {
             skipHeaderLineCount = 0;
+        }
+        
+        // Debug log to trace the issue
+        if (skipHeaderLineCount > 0) {
+            LOG.info("Parsed skip.header.line.count = {} from parameters. serdeConstants.HEADER_COUNT = '{}', direct key = '{}'", 
+                    skipHeaderLineCount, serdeConstants.HEADER_COUNT, 
+                    parameters.getOrDefault("skip.header.line.count", "not found"));
         }
 
         // check delim is empty, if it's empty, we convert it to null

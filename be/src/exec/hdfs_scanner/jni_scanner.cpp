@@ -546,9 +546,20 @@ std::unique_ptr<JniScanner> create_hive_jni_scanner(const JniScanner::CreateOpti
     jni_scanner_params["input_format"] = input_format;
     jni_scanner_params["time_zone"] = time_zone;
     jni_scanner_params["fs_options_props"] = build_fs_options_properties(*(options.fs_options));
-
     for (const auto& pair : serde_properties) {
         jni_scanner_params[serde_property_prefix + pair.first] = pair.second;
+    }
+    if (scan_range.__isset.text_file_desc && scan_range.text_file_desc.__isset.skip_header_line_count) {
+        int32_t skip_count = scan_range.text_file_desc.skip_header_line_count;
+        jni_scanner_params["skip_header_line_count"] = std::to_string(skip_count);
+        LOG(INFO) << "Passing skip_header_line_count = " << skip_count << " to HiveScanner";
+    } else {
+        LOG(INFO) << "skip_header_line_count not set in text_file_desc. __isset.text_file_desc = " 
+                  << scan_range.__isset.text_file_desc;
+        if (scan_range.__isset.text_file_desc) {
+            LOG(INFO) << "text_file_desc.__isset.skip_header_line_count = " 
+                      << scan_range.text_file_desc.__isset.skip_header_line_count;
+        }
     }
 
     std::string scanner_factory_class = "com/starrocks/hive/reader/HiveScannerFactory";
