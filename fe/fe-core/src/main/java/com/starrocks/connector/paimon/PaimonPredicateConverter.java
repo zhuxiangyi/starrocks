@@ -134,6 +134,9 @@ public class PaimonPredicateConverter extends ScalarOperatorVisitor<Predicate, P
             return null;
         }
         int idx = fieldNames.indexOf(columnName);
+        if (idx == -1) {
+            return null;
+        }
         if (operator.isNotNull()) {
             return builder.isNotNull(idx);
         } else {
@@ -148,6 +151,9 @@ public class PaimonPredicateConverter extends ScalarOperatorVisitor<Predicate, P
             return null;
         }
         int idx = fieldNames.indexOf(columnName);
+        if (idx == -1) {
+            return null;
+        }
         Object literal = getLiteral(operator.getChild(1), fieldTypes.get(idx));
         if (literal == null) {
             return null;
@@ -185,6 +191,9 @@ public class PaimonPredicateConverter extends ScalarOperatorVisitor<Predicate, P
             return null;
         }
         int idx = fieldNames.indexOf(columnName);
+        if (idx == -1) {
+            return null;
+        }
         List<ScalarOperator> valuesOperatorList = operator.getListChildren();
         List<Object> literalValues = new ArrayList<>(valuesOperatorList.size());
         for (ScalarOperator valueOperator : valuesOperatorList) {
@@ -213,6 +222,9 @@ public class PaimonPredicateConverter extends ScalarOperatorVisitor<Predicate, P
         }
 
         int idx = fieldNames.indexOf(columnName);
+        if (idx == -1) {
+            return null;
+        }
         if (operator.getLikeType() == LikePredicateOperator.LikeType.LIKE) {
             if (operator.getChild(1).getType().isStringType()) {
                 Object objectLiteral = getLiteral(operator.getChild(1), fieldTypes.get(idx));

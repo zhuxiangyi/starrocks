@@ -226,6 +226,26 @@ public class PaimonPredicateConverterTest {
     }
 
     @Test
+    public void testFieldNotInSchema() {
+        // A column that is absent from the paimon row type must not be pushed down, otherwise the
+        // -1 index leaks into paimon and blows up as IndexOutOfBoundsException while opening the reader.
+        ColumnRefOperator missing = new ColumnRefOperator(10, IntegerType.INT, "f_not_exist", true, false);
+
+        Assertions.assertNull(CONVERTER.convert(
+                new BinaryPredicateOperator(BinaryType.EQ, missing, ConstantOperator.createInt(5))));
+        Assertions.assertNull(CONVERTER.convert(new IsNullPredicateOperator(false, missing)));
+        Assertions.assertNull(CONVERTER.convert(new IsNullPredicateOperator(true, missing)));
+
+        List<ScalarOperator> inOp = Lists.newArrayList();
+        inOp.add(missing);
+        inOp.add(ConstantOperator.createInt(11));
+        Assertions.assertNull(CONVERTER.convert(new InPredicateOperator(false, inOp)));
+
+        Assertions.assertNull(CONVERTER.convert(new LikePredicateOperator(LikePredicateOperator.LikeType.LIKE,
+                missing, ConstantOperator.createVarchar("ttt%"))));
+    }
+
+    @Test
     public void testLike() {
         ConstantOperator value = ConstantOperator.createVarchar("ttt%");
         ScalarOperator op = new LikePredicateOperator(LikePredicateOperator.LikeType.LIKE, F1, value);

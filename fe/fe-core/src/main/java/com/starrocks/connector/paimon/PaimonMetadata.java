@@ -635,8 +635,15 @@ public class PaimonMetadata implements ConnectorMetadata {
 
         if (!paimonSplits.containsKey(filter)) {
             ReadBuilder readBuilder = paimonNativeTable.newReadBuilder();
-            int[] projected =
-                    params.getFieldNames().stream().mapToInt(name -> (paimonTable.getFieldNames().indexOf(name))).toArray();
+            List<String> paimonFieldNames = paimonTable.getFieldNames();
+            int[] projected = params.getFieldNames().stream().mapToInt(name -> {
+                int index = paimonFieldNames.indexOf(name);
+                if (index == -1) {
+                    throw new StarRocksConnectorException("Cannot find field %s in schema %s of paimon table %s.%s",
+                            name, paimonFieldNames, paimonTable.getCatalogDBName(), paimonTable.getCatalogTableName());
+                }
+                return index;
+            }).toArray();
             List<Predicate> predicates = extractPredicates(paimonTable, params.getPredicate());
             boolean pruneManifestsByLimit = params.getLimit() != -1 && params.getLimit() < Integer.MAX_VALUE
                     && onlyHasPartitionPredicate(table, params.getPredicate());

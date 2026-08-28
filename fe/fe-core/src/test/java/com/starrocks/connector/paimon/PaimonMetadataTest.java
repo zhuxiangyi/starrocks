@@ -311,6 +311,10 @@ public class PaimonMetadataTest {
                 // according to PaimonMetadata::getTableVersionRange，the snapshot id of system table is -1L,
                 // so the above paimonSystemTable.latestSnapshotId() would not be called.
                 minTimes = 0;
+                paimonSystemTable.rowType().getFields();
+                result = Arrays.asList(
+                        new DataField(0, "file_name", SerializationUtils.newStringType(false)),
+                        new DataField(1, "file_size", new BigIntType(false)));
                 paimonSystemTable.newReadBuilder();
                 result = readBuilder;
                 readBuilder.withFilter((List<Predicate>) any).withProjection((int[]) any).newScan();
@@ -741,6 +745,10 @@ public class PaimonMetadataTest {
             {
                 paimonNativeCatalog.getTable((Identifier) any);
                 result = paimonNativeTable;
+                paimonNativeTable.rowType().getFields();
+                result = Arrays.asList(
+                        new DataField(0, "f2", new IntType(true)),
+                        new DataField(1, "dt", new org.apache.paimon.types.DateType(true)));
                 paimonNativeTable.newReadBuilder();
                 result = readBuilder;
                 readBuilder.withFilter((List<Predicate>) any).withProjection((int[]) any).newScan().plan().splits();
@@ -759,6 +767,34 @@ public class PaimonMetadataTest {
         assertEquals(1, result.get(0).getFiles().size());
         PaimonRemoteFileDesc desc = (PaimonRemoteFileDesc) result.get(0).getFiles().get(0);
         assertEquals(2, desc.getPaimonSplitsInfo().getPaimonSplits().size());
+    }
+
+    @Test
+    public void testGetRemoteFilesWithUnknownField(@Mocked FileStoreTable paimonNativeTable,
+                                                   @Mocked ReadBuilder readBuilder)
+            throws Catalog.TableNotExistException {
+        new Expectations() {
+            {
+                paimonNativeCatalog.getTable((Identifier) any);
+                result = paimonNativeTable;
+                paimonNativeTable.rowType().getFields();
+                result = Arrays.asList(
+                        new DataField(0, "f2", new IntType(true)),
+                        new DataField(1, "dt", new org.apache.paimon.types.DateType(true)));
+                paimonNativeTable.newReadBuilder();
+                result = readBuilder;
+                minTimes = 0;
+            }
+        };
+        PaimonTable paimonTable = (PaimonTable) metadata.getTable(connectContext, "db1", "tbl1");
+        // A stale field name must be reported by its own name instead of leaking a -1 index into
+        // paimon, where it surfaces as IndexOutOfBoundsException.
+        GetRemoteFilesParams params = GetRemoteFilesParams.newBuilder()
+                .setFieldNames(Lists.newArrayList("f2", "dropped_col"))
+                .setTableVersionRange(TvrTableSnapshot.of(Optional.of(-1L))).build();
+        StarRocksConnectorException e = assertThrows(StarRocksConnectorException.class,
+                () -> metadata.getRemoteFiles(paimonTable, params));
+        assertTrue(e.getMessage().contains("dropped_col"));
     }
 
     @Test
